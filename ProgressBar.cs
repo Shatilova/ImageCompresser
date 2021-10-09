@@ -15,7 +15,7 @@ namespace ImageCompresser
 	/// </summary>
 	public class ProgressBar : IDisposable, IProgress<double>
 	{
-		private const int blockCount = 50;
+		private const int blockCount = 70;
 		private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
 		private const string animation = @"|/-\";
 
