@@ -14,6 +14,7 @@ namespace ImageCompresser
         static List<string> ImageExts = new() { ".jpg", ".jpeg", ".png" };
         static string InPath;
         public static string OutPath;
+        static string ProgramPath;
 
         static int TotalFiles = 0;
         static int FilesDone = 0;
@@ -38,7 +39,7 @@ namespace ImageCompresser
                 {
                     string output = $"{OutPath}{relative}\\{file.Name}";
                     log.AppendLine($"OutputFile - {$"{OutPath}{relative}\\{file.Name}"}");
-                    if (ImageExts.Contains(file.Extension))
+                    if (ImageExts.Contains(file.Extension.ToLower()))
                     {
                         log.AppendLine($"File - {file.FullName}");
                         Status = $"Сжатие ..{file.FullName.Substring(InPath.Length)}";
@@ -77,7 +78,7 @@ namespace ImageCompresser
                 }
             } catch (Exception ex)
             {
-                File.WriteAllText("error.log", log.ToString() + "\nException:\n" + ex.Message);
+                File.WriteAllText(ProgramPath + "\\error.log", log.ToString() + "\nException:\n" + ex.Message);
             }
         }
 
@@ -101,6 +102,8 @@ namespace ImageCompresser
         }
         static void Main(string[] args)
         {
+            ProgramPath = Directory.GetCurrentDirectory();
+
             Console.Write("Введите путь:\n> ");
             InPath = Console.ReadLine();
             if (!Directory.Exists(InPath))
@@ -110,6 +113,7 @@ namespace ImageCompresser
                 return;
             }
 
+            
             OutPath = InPath + "\\CompressedResult";            
             if(Directory.Exists(OutPath))
             {
@@ -145,12 +149,16 @@ namespace ImageCompresser
             sw.Stop();
 
             Console.Clear();
-            Console.WriteLine($"Сжато изображений - {ImagesDone} ({DirectoryExt.GetSizeInMegabytes(InPath, ImageExts.ToArray())} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath, ImageExts.ToArray())} Мб)");
-            Console.WriteLine($"Перемещено файлов - {FilesDone - ImagesDone - ErrorsCount} ({DirectoryExt.GetSizeInMegabytes(InPath, excludeExts: ImageExts.ToArray())} Мб)");
+            StringBuilder resLog = new();
+            resLog.AppendLine($"Сжато изображений - {ImagesDone} ({DirectoryExt.GetSizeInMegabytes(InPath, ImageExts.ToArray())} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath, ImageExts.ToArray())} Мб)")
+                .AppendLine($"Перемещено файлов - {FilesDone - ImagesDone - ErrorsCount} ({DirectoryExt.GetSizeInMegabytes(InPath, excludeExts: ImageExts.ToArray())} Мб)");
             if (ErrorsCount > 0)
-                Console.WriteLine($"Битых изображений - {ErrorsCount}");
-            Console.WriteLine($"Всего файлов - {TotalFiles} ({DirectoryExt.GetSizeInMegabytes(InPath)} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath)} Мб)");
-            Console.WriteLine($"Затрачено времени - {sw.Elapsed.Hours}:{sw.Elapsed.Minutes}:{sw.Elapsed.Seconds}");
+                resLog.AppendLine($"Битых изображений - {ErrorsCount}");
+            resLog.AppendLine($"Всего файлов - {TotalFiles} ({DirectoryExt.GetSizeInMegabytes(InPath)} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath)} Мб)")
+                .AppendLine($"Затрачено времени - {sw.Elapsed.Hours.ToString().PadLeft(2, '0')}:{sw.Elapsed.Minutes.ToString().PadLeft(2, '0')}:{sw.Elapsed.Seconds.ToString().PadLeft(2, '0')}");
+
+            File.WriteAllText(ProgramPath +"\\result.log", new StringBuilder().AppendLine($"Время операции - {DateTime.Now.AddMilliseconds(-sw.ElapsedMilliseconds)}").ToString() + resLog.ToString());
+            Console.WriteLine(resLog.ToString() + "\nДанная информация продублирована в файл \"result.log\"");
             Console.ReadKey();
         }
     }
@@ -189,7 +197,6 @@ namespace ImageCompresser
                 {
                     return files
                     .Where(e => includeExts.Any(f => e.Name.EndsWith(f, StringComparison.OrdinalIgnoreCase)))
-                    .Where(e => !excludeExts.Any(f => e.Name.EndsWith(f, StringComparison.OrdinalIgnoreCase)))
                     .Sum(e => e.Length) / (1024 * 1024);
                 }
             }

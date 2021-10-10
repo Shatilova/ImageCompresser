@@ -1,8 +1,7 @@
 {
   "profiles": {
     "ImageCompresser": {
-      "commandName": "Project",
-      "workingDirectory": "C:\\Users\\Евгения\\source\\repos\\ImageCompresser\\bin\\Debug\\net5.0\\Raw"
+      "commandName": "Project"
     }
   }
 }

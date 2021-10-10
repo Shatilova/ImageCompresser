@@ -42,10 +42,10 @@ namespace ImageCompresser
 		}
 
 		public void ReportInfo(string status, TimeSpan timeLeft)
-        {
+		{
 			Interlocked.Exchange(ref currentStatus, status);
 			var newTimeLeft = new DateTime(2021, 1, 1, timeLeft.Hours, timeLeft.Minutes, timeLeft.Seconds);
-			Interlocked.Exchange(ref leftTime, newTimeLeft.ToString("T"));
+			Interlocked.Exchange(ref leftTime, $"{timeLeft.Hours.ToString().PadLeft(2, '0')}:{timeLeft.Minutes.ToString().PadLeft(2, '0')}:{timeLeft.Seconds.ToString().PadLeft(2, '0')}");
 		}
 
 
