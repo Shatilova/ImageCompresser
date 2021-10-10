@@ -19,7 +19,9 @@ namespace ImageCompresser
         static int TotalFiles = 0;
         static int FilesDone = 0;
         static int ImagesDone = 0;
+        static int SmallImagesCount = 0;
         static int ErrorsCount = 0;
+        static int NotImages = 0;
                 
         static Stopwatch sw;
         static string Status = "";
@@ -41,29 +43,39 @@ namespace ImageCompresser
                     log.AppendLine($"OutputFile - {$"{OutPath}{relative}\\{file.Name}"}");
                     if (ImageExts.Contains(file.Extension.ToLower()))
                     {
-                        log.AppendLine($"File - {file.FullName}");
-                        Status = $"Сжатие ..{file.FullName.Substring(InPath.Length)}";
-                        log.AppendLine($"Status - {Status}");
-                        try
+                        if (file.Length > (1024 * 1024))
                         {
-                            using (MagickImage image = new(file.FullName))
+                            log.AppendLine($"File - {file.FullName}");
+                            Status = $"Сжатие ..{file.FullName.Substring(InPath.Length)}";
+                            log.AppendLine($"Status - {Status}");
+                            try
                             {
-                                image.Format = MagickFormat.Jpg;
-                                image.Quality = 75;
-                                image.Write($"{OutPath}{relative}\\{file.Name}");
+                                using (MagickImage image = new(file.FullName))
+                                {
+                                    image.Format = MagickFormat.Jpg;
+                                    image.Quality = 75;
+                                    image.Write($"{OutPath}{relative}\\{file.Name}");
+                                }
+                                log.AppendLine($"OutFile created!");
+                                ImagesDone++;
                             }
-                            log.AppendLine($"OutFile created!");
-                            ImagesDone++;
+                            catch
+                            {
+                                ErrorsCount++;
+                            }
                         }
-                        catch 
+                        else
                         {
-                            ErrorsCount++;
-                        }                        
+                            Status = $"Пропуск ..{file.FullName.Replace(root.FullName, "")}";
+                            File.Copy(file.FullName, output);
+                            SmallImagesCount++;
+                        }                                          
                     }
                     else
                     {
                         Status = $"Копирование ..{file.FullName.Replace(root.FullName, "")}";
                         File.Copy(file.FullName, output);
+                        NotImages++;
                     }
 
                     FilesDone++;
@@ -150,14 +162,21 @@ namespace ImageCompresser
 
             Console.Clear();
             StringBuilder resLog = new();
-            resLog.AppendLine($"Сжато изображений - {ImagesDone} ({DirectoryExt.GetSizeInMegabytes(InPath, ImageExts.ToArray())} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath, ImageExts.ToArray())} Мб)")
-                .AppendLine($"Перемещено файлов - {FilesDone - ImagesDone - ErrorsCount} ({DirectoryExt.GetSizeInMegabytes(InPath, excludeExts: ImageExts.ToArray())} Мб)");
+            resLog.AppendLine($"Сжато изображений - {ImagesDone} ({DirectoryExt.GetSizeInMegabytes(InPath, ImageExts.ToArray(), minSize: (1024 * 1024))} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath, ImageExts.ToArray(), minSize: (1024 * 1024))} Мб)");
+
+            if (SmallImagesCount > 0)
+                resLog.AppendLine($"Пропущено изображений меньше 1Мб - {SmallImagesCount} ({DirectoryExt.GetSizeInMegabytes(InPath, ImageExts.ToArray(), maxSize: (1024 * 1024))} Мб)");
+
+            if (NotImages > 0)
+                resLog.AppendLine($"Перемещено файлов - {NotImages} ({DirectoryExt.GetSizeInMegabytes(InPath, excludeExts: ImageExts.ToArray())} Мб)");
+
             if (ErrorsCount > 0)
                 resLog.AppendLine($"Битых изображений - {ErrorsCount}");
+
             resLog.AppendLine($"Всего файлов - {TotalFiles} ({DirectoryExt.GetSizeInMegabytes(InPath)} Мб >>> {DirectoryExt.GetSizeInMegabytes(OutPath)} Мб)")
                 .AppendLine($"Затрачено времени - {sw.Elapsed.Hours.ToString().PadLeft(2, '0')}:{sw.Elapsed.Minutes.ToString().PadLeft(2, '0')}:{sw.Elapsed.Seconds.ToString().PadLeft(2, '0')}");
 
-            File.WriteAllText(ProgramPath +"\\result.log", new StringBuilder().AppendLine($"Время операции - {DateTime.Now.AddMilliseconds(-sw.ElapsedMilliseconds)}").ToString() + resLog.ToString());
+            File.WriteAllText(ProgramPath +"\\result.log", new StringBuilder().AppendLine($"Время начала операции - {DateTime.Now.AddMilliseconds(-sw.ElapsedMilliseconds)}").ToString() + resLog.ToString());
             Console.WriteLine(resLog.ToString() + "\nДанная информация продублирована в файл \"result.log\"");
             Console.ReadKey();
         }
@@ -165,10 +184,10 @@ namespace ImageCompresser
 
     public static class DirectoryExt
     {
-        public static long GetSizeInMegabytes(string path, string[] includeExts = null, string[] excludeExts = null)
+        public static long GetSizeInMegabytes(string path, string[] includeExts = null, string[] excludeExts = null, long minSize = 0, long maxSize = long.MaxValue)
         {
             DirectoryInfo dir = new DirectoryInfo(path);
-            var files = dir.EnumerateFiles("*", SearchOption.AllDirectories);
+            var files = dir.EnumerateFiles("*", SearchOption.AllDirectories).Where(e => e.Length > minSize && e.Length < maxSize);
             if (!path.StartsWith(Program.OutPath))
                 files = files.Where(e => !e.FullName.StartsWith(Program.OutPath));
 
