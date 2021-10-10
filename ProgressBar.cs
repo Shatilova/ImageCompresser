@@ -1,28 +1,23 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
+// taken from: https://gist.github.com/DanielSWolf/0ab6a96899cc5377bf54
 namespace ImageCompresser
 {
-	using System;
-	using System.Text;
-	using System.Threading;
-
 	/// <summary>
 	/// An ASCII progress bar
 	/// </summary>
 	public class ProgressBar : IDisposable, IProgress<double>
 	{
-		private const int blockCount = 70;
+		private const int blockCount = 50;
 		private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
 		private const string animation = @"|/-\";
 
 		private readonly Timer timer;
 
 		private double currentProgress = 0;
-		private string currentText = string.Empty;
+		private string currentStatus = "1";
+		private string leftTime = "";
 		private bool disposed = false;
 		private int animationIndex = 0;
 
@@ -46,6 +41,14 @@ namespace ImageCompresser
 			Interlocked.Exchange(ref currentProgress, value);
 		}
 
+		public void ReportInfo(string status, TimeSpan timeLeft)
+        {
+			Interlocked.Exchange(ref currentStatus, status);
+			var newTimeLeft = new DateTime(2021, 1, 1, timeLeft.Hours, timeLeft.Minutes, timeLeft.Seconds);
+			Interlocked.Exchange(ref leftTime, newTimeLeft.ToString("T"));
+		}
+
+
 		private void TimerHandler(object state)
 		{
 			lock (timer)
@@ -66,31 +69,11 @@ namespace ImageCompresser
 
 		private void UpdateText(string text)
 		{
-			// Get length of common portion
-			int commonPrefixLength = 0;
-			int commonLength = Math.Min(currentText.Length, text.Length);
-			while (commonPrefixLength < commonLength && text[commonPrefixLength] == currentText[commonPrefixLength])
-			{
-				commonPrefixLength++;
-			}
-
-			// Backtrack to the first differing character
-			StringBuilder outputBuilder = new StringBuilder();
-			outputBuilder.Append('\b', currentText.Length - commonPrefixLength);
-
-			// Output new suffix
-			outputBuilder.Append(text.Substring(commonPrefixLength));
-
-			// If the new text is shorter than the old one: delete overlapping characters
-			int overlapCount = currentText.Length - text.Length;
-			if (overlapCount > 0)
-			{
-				outputBuilder.Append(' ', overlapCount);
-				outputBuilder.Append('\b', overlapCount);
-			}
-
-			Console.Write(outputBuilder);
-			currentText = text;
+			Console.Clear();
+            Console.SetCursorPosition(0, Console.CursorTop);
+			Console.WriteLine(text);
+			Console.WriteLine(currentStatus);
+			Console.Write($"Осталось времени: {leftTime}");
 		}
 
 		private void ResetTimer()
